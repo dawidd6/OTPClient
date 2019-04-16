@@ -1,3 +1,9 @@
+otpclient (1.4.1-1) UNRELEASED; urgency=medium
+
+  * New Upstream Release.
+
+ -- Dawid Dziurla <dawidd0811@gmail.com>  Wed, 17 Apr 2019 01:24:49 +0200
+
 otpclient (1.4.0-1) UNRELEASED; urgency=medium
 
   * Initial Release.
