@@ -3,17 +3,17 @@ Section: utils
 Priority: optional
 Maintainer: Dawid Dziurla <dawidd0811@gmail.com>
 Build-Depends:
- debhelper-compat (= 12),
+ debhelper (>= 9),
  cmake,
  pkg-config,
  libcotp-dev (>= 1.2.1),
  libgcrypt20-dev (>= 1.6.0),
- libpng-dev (>= 1.2.0),
+ libpng-dev|libpng12-dev (>= 1.2.0),
  libzip-dev (>= 1.0.0),
  libjansson-dev (>= 2.6.0),
  libzbar-dev (>= 0.10),
  libgtk-3-dev (>= 3.18),
-Standards-Version: 4.3.0.1
+Standards-Version: 3.9.7
 Homepage: https://github.com/paolostivanin/OTPClient
 
 Package: otpclient
