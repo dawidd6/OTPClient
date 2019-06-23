@@ -1,3 +1,9 @@
+otpclient (1.5.0-1) xenial; urgency=medium
+
+  * New upstream version 1.5.0
+
+ -- Dawid Dziurla <dawidd0811@gmail.com>  Sun, 23 Jun 2019 19:50:18 +0200
+
 otpclient (1.4.1-1) xenial; urgency=medium
 
   * New Upstream Release.
