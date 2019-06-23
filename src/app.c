@@ -44,6 +44,10 @@ static void       change_password_cb        (GSimpleAction      *simple,
 static void       save_window_size          (gint                width,
                                              gint                height);
 
+static gboolean   key_pressed_cb            (GtkWidget          *window,
+                                             GdkEventKey        *event_key,
+                                             gpointer            user_data);
+
 static void       destroy_cb                (GtkWidget          *window,
                                              gpointer            user_data);
 
@@ -58,10 +62,10 @@ activate (GtkApplication    *app,
         max_file_size = 256000; // memlock is either unlimited or bigger than needed
     } else if (memlock_limit == -5) {
         max_file_size = 64000; // couldn't get memlock limit, so falling back to a default, low value
-        g_print ("[WARNING] your OS's memlock limit may be too low for you. Please have a look at https://github.com/paolostivanin/OTPClient#limitations\n.");
+        g_print ("[WARNING] your OS's memlock limit may be too low for you. Please have a look at https://github.com/paolostivanin/OTPClient#limitations\n");
     } else {
         max_file_size = (gint32) memlock_limit; // memlock is less than 256 KB
-        g_print ("[WARNING] your OS's memlock limit may be too low for you. Please have a look at https://github.com/paolostivanin/OTPClient#limitations\n.");
+        g_print ("[WARNING] your OS's memlock limit may be too low for you. Please have a look at https://github.com/paolostivanin/OTPClient#limitations\n");
     }
 
     AppData *app_data = g_new0 (AppData, 1);
@@ -168,12 +172,29 @@ activate (GtkApplication    *app,
     gtk_binding_entry_add_signal (toggle_btn_binding_set, GDK_KEY_d, GDK_CONTROL_MASK, "toggle-delete-button", 0);
     g_signal_connect (app_data->main_window, "toggle-delete-button", G_CALLBACK(toggle_delete_button_cb), del_toggle_btn);
     g_signal_connect (del_toggle_btn, "toggled", G_CALLBACK(del_data_cb), app_data);
+    g_signal_connect (app_data->main_window, "key_press_event", G_CALLBACK(key_pressed_cb), NULL);
 
     g_signal_connect (app_data->main_window, "destroy", G_CALLBACK(destroy_cb), app_data);
 
     app_data->source_id = g_timeout_add_full (G_PRIORITY_DEFAULT, 500, traverse_liststore, app_data, NULL);
 
     gtk_widget_show_all (app_data->main_window);
+}
+
+
+static gboolean
+key_pressed_cb (GtkWidget   *window,
+                GdkEventKey *event_key,
+                gpointer     user_data __attribute__((unused)))
+{
+    switch (event_key->keyval) {
+        case GDK_KEY_q:
+        if (event_key->state & GDK_CONTROL_MASK) {
+            gtk_window_close (GTK_WINDOW(window));
+        }
+        break;
+    }
+    return FALSE;
 }
 
 
@@ -186,7 +207,7 @@ get_config_data (gint     *width,
     GKeyFile *kf = g_key_file_new ();
     gchar *cfg_file_path;
 #ifndef USE_FLATPAK_APP_FOLDER
-    cfg_file_path = g_build_filename (g_get_home_dir (), ".config", "otpclient.cfg", NULL);
+    cfg_file_path = g_build_filename (g_get_user_config_dir (), "otpclient.cfg", NULL);
 #else
     cfg_file_path = g_build_filename (g_get_user_data_dir (), "otpclient.cfg", NULL);
 #endif
@@ -270,43 +291,64 @@ get_db_path (GtkWidget *window)
     gchar *db_path = NULL;
     GError *err = NULL;
     GKeyFile *kf = g_key_file_new ();
-    gchar *cfg_file_path = g_build_filename (g_get_home_dir (), ".config", "otpclient.cfg", NULL);
+    gchar *cfg_file_path = g_build_filename (g_get_user_config_dir (), "otpclient.cfg", NULL);
     if (g_file_test (cfg_file_path, G_FILE_TEST_EXISTS)) {
         if (!g_key_file_load_from_file (kf, cfg_file_path, G_KEY_FILE_NONE, &err)) {
-            g_printerr ("%s\n", err->message);
+            show_message_dialog (window, err->message, GTK_MESSAGE_ERROR);
             g_key_file_free (kf);
             return NULL;
         }
         db_path = g_key_file_get_string (kf, "config", "db_path", &err);
         if (db_path == NULL) {
+            goto new_db;
+        }
+        if (!g_file_test (db_path, G_FILE_TEST_EXISTS)) {
+            gchar *msg = g_strconcat ("Database file/location (", db_path, ") does not exist.\nA new database will be created.", NULL);
+            show_message_dialog (window, msg, GTK_MESSAGE_ERROR);
+            g_free (msg);
+            goto new_db;
+        }
+        goto end;
+    }
+    new_db: ; // empty statement workaround
+#if GTK_CHECK_VERSION(3, 20, 0)
+    GtkFileChooserNative *dialog = gtk_file_chooser_native_new ("Select database location",
+                                                                GTK_WINDOW (window),
+                                                                GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                                "OK",
+                                                                "Cancel");
+#else
+    GtkWidget *dialog = gtk_file_chooser_dialog_new ("Select database location",
+                                                        GTK_WINDOW (window),
+                                                        GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                        "Cancel", GTK_RESPONSE_CANCEL,
+                                                        "OK", GTK_RESPONSE_ACCEPT,
+                                                        NULL);
+#endif
+    GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+    gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
+    gtk_file_chooser_set_select_multiple (chooser, FALSE);
+    gtk_file_chooser_set_current_name (chooser, "NewDatabase.enc");
+#if GTK_CHECK_VERSION(3, 20, 0)
+    gint res = gtk_native_dialog_run (GTK_NATIVE_DIALOG(dialog));
+#else
+    gint res = gtk_dialog_run (GTK_DIALOG (dialog));
+#endif
+    if (res == GTK_RESPONSE_ACCEPT) {
+        db_path = gtk_file_chooser_get_filename (chooser);
+        g_key_file_set_string (kf, "config", "db_path", db_path);
+        g_key_file_save_to_file (kf, cfg_file_path, &err);
+        if (err != NULL) {
             g_printerr ("%s\n", err->message);
             g_key_file_free (kf);
-            return NULL;
         }
-    } else {
-        GtkWidget *dialog = gtk_file_chooser_dialog_new ("Select database location",
-                                                         GTK_WINDOW (window),
-                                                         GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                         "Cancel", GTK_RESPONSE_CANCEL,
-                                                         "OK", GTK_RESPONSE_ACCEPT,
-                                                         NULL);
-        GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
-        gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
-        gtk_file_chooser_set_select_multiple (chooser, FALSE);
-        gtk_file_chooser_set_current_name (chooser, "NewDatabase.enc");
-        gint res = gtk_dialog_run (GTK_DIALOG (dialog));
-        if (res == GTK_RESPONSE_ACCEPT) {
-            db_path = gtk_file_chooser_get_filename (chooser);
-            g_key_file_set_string (kf, "config", "db_path", db_path);
-            g_key_file_save_to_file (kf, cfg_file_path, &err);
-            if (err != NULL) {
-                g_printerr ("%s\n", err->message);
-                g_key_file_free (kf);
-            }
-        }
-        gtk_widget_destroy (dialog);
     }
-
+#if GTK_CHECK_VERSION(3, 20, 0)
+    g_object_unref (dialog);
+#else
+    gtk_widget_destroy (dialog);
+#endif
+    end:
     g_free (cfg_file_path);
 
     return db_path;
@@ -428,7 +470,7 @@ save_window_size (gint width,
     GKeyFile *kf = g_key_file_new ();
     gchar *cfg_file_path;
 #ifndef USE_FLATPAK_APP_FOLDER
-    cfg_file_path = g_build_filename (g_get_home_dir (), ".config", "otpclient.cfg", NULL);
+    cfg_file_path = g_build_filename (g_get_user_config_dir (), "otpclient.cfg", NULL);
 #else
     cfg_file_path = g_build_filename (g_get_user_data_dir (), "otpclient.cfg", NULL);
 #endif
