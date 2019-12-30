@@ -1,6 +1,6 @@
 #include <gtk/gtk.h>
 #include <gcrypt.h>
-#include "common.h"
+#include "gui-common.h"
 #include "message-dialogs.h"
 #include "get-builder.h"
 #include "otpclient.h"
@@ -13,9 +13,6 @@ typedef struct _entrywidgets {
     gchar *pwd;
     gchar *cur_pwd;
 } EntryWidgets;
-
-static void send_ok_cb    (GtkWidget *entry,
-                           gpointer   user_data);
 
 static void check_pwd_cb  (GtkWidget *entry,
                            gpointer   user_data);
@@ -44,7 +41,7 @@ prompt_for_password (AppData        *app_data,
         dialog = GTK_WIDGET(gtk_builder_get_object (builder, "decpwd_diag_id"));
         gchar *text = NULL, *markup = NULL;
         if (action_name == NULL){
-            markup = g_markup_printf_escaped ("%s <span font_family=\"monospace\">%s</span>", "Enter the decryption password for ", app_data->db_data->db_path);
+            markup = g_markup_printf_escaped ("%s <span font_family=\"monospace\">%s</span>", "Enter the decryption password for\n", app_data->db_data->db_path);
         } else {
             text = g_strdup ("Enter the decryption password");
         }
@@ -105,8 +102,9 @@ prompt_for_password (AppData        *app_data,
     gchar *pwd = NULL;
     if (entry_widgets->pwd != NULL) {
         gcry_free (current_key);
-        pwd = gcry_calloc_secure (strlen (entry_widgets->pwd) + 1, 1);
-        strncpy (pwd, entry_widgets->pwd, strlen (entry_widgets->pwd) + 1);
+        gsize len = strlen (entry_widgets->pwd) + 1;
+        pwd = gcry_calloc_secure (len, 1);
+        strncpy (pwd, entry_widgets->pwd, len);
         gcry_free (entry_widgets->pwd);
     }
     if (entry_widgets->cur_pwd != NULL) {
@@ -120,14 +118,6 @@ prompt_for_password (AppData        *app_data,
     g_object_unref (builder);
 
     return pwd;
-}
-
-
-static void
-send_ok_cb (GtkWidget *entry,
-            gpointer   user_data __attribute__((unused)))
-{
-    gtk_dialog_response (GTK_DIALOG (gtk_widget_get_toplevel (entry)), GTK_RESPONSE_OK);
 }
 
 
@@ -160,9 +150,10 @@ static void
 password_cb (GtkWidget  *entry,
              gpointer   *pwd)
 {
-    const gchar *text = gtk_entry_get_text (GTK_ENTRY (entry));
-    *pwd = gcry_calloc_secure (strlen (text) + 1, 1);
-    strncpy (*pwd, text, strlen (text) + 1);
+    const gchar *text = gtk_entry_get_text (GTK_ENTRY(entry));
+    gsize len = strlen (text) + 1;
+    *pwd = gcry_calloc_secure (len, 1);
+    strncpy (*pwd, text, len);
     GtkWidget *top_level = gtk_widget_get_toplevel (entry);
     gtk_dialog_response (GTK_DIALOG (top_level), GTK_RESPONSE_CLOSE);
 }

@@ -1,11 +1,12 @@
 #include <gtk/gtk.h>
 #include <gcrypt.h>
 #include <jansson.h>
+#include <glib/gstdio.h>
 #include "db-misc.h"
 #include "otpclient.h"
 #include "file-size.h"
 #include "gquarks.h"
-#include "common.h"
+#include "common/common.h"
 
 typedef struct _header_data {
     guint8 iv[IV_SIZE];
@@ -14,9 +15,9 @@ typedef struct _header_data {
 
 static void         reload_db       (DatabaseData *db_data, GError **err);
 
-static void         update_db       (DatabaseData *data);
+static void         update_db       (DatabaseData *db_data, GError **err);
 
-static gpointer     encrypt_db      (const gchar *db_path, const gchar *in_memory_json, const gchar *password);
+static gpointer     encrypt_db      (const gchar *db_path, const gchar *in_memory_json, const gchar *password, GError **err);
 
 static inline void  add_to_json     (gpointer list_elem, gpointer json_array);
 
@@ -59,7 +60,8 @@ load_db (DatabaseData    *db_data,
     db_data->json_data = json_loads (in_memory_json, 0, &jerr);
     gcry_free (in_memory_json);
     if (db_data->json_data == NULL) {
-        g_printerr ("Error while loading json data: %s\n", jerr.text);
+        gchar *msg = g_strconcat ("Error while loading json data: ", jerr.text, NULL);
+        g_set_error (err, memlock_error_gquark(), MEMLOCK_ERRCODE, "%s", msg);
         return;
     }
 
@@ -73,21 +75,28 @@ load_db (DatabaseData    *db_data,
 
 
 void
-update_and_reload_db (AppData   *app_data,
-                      gboolean   regenerate_model,
-                      GError   **err)
+update_and_reload_db (AppData       *app_data,
+                      DatabaseData  *db_data,
+                      gboolean       regenerate_model,
+                      GError       **err)
 {
-    update_db (app_data->db_data);
-    reload_db (app_data->db_data, err);
+    update_db (db_data, err);
     if (*err != NULL && !g_error_matches (*err, missing_file_gquark (), MISSING_FILE_CODE)) {
-        g_printerr("%s\n", (*err)->message);
+        g_printerr ("%s\n", (*err)->message);
         return;
     }
+    reload_db (db_data, err);
+    if (*err != NULL && !g_error_matches (*err, missing_file_gquark (), MISSING_FILE_CODE)) {
+        g_printerr ("%s\n", (*err)->message);
+        return;
+    }
+#ifdef BUILD_GUI
     if (regenerate_model) {
         update_model (app_data);
         g_slist_free_full (app_data->db_data->data_to_add, json_free);
         app_data->db_data->data_to_add = NULL;
     }
+#endif
 }
 
 
@@ -95,8 +104,8 @@ gint
 check_duplicate (gconstpointer data,
                  gconstpointer user_data)
 {
-    guint list_elem = *(guint *) data;
-    if (list_elem == GPOINTER_TO_UINT (user_data)) {
+    guint list_elem = *(guint *)data;
+    if (list_elem == GPOINTER_TO_UINT(user_data)) {
         return 0;
     }
     return -1;
@@ -119,27 +128,34 @@ reload_db (DatabaseData  *db_data,
 
 
 static void
-update_db (DatabaseData *data)
+update_db (DatabaseData  *db_data,
+           GError       **err)
 {
-    gboolean first_run = FALSE;
-    if (data->json_data == NULL) {
-        first_run = TRUE;
-        data->json_data = json_array ();
+    gboolean first_run = (db_data->json_data == NULL) ? TRUE : FALSE;
+    if (first_run == TRUE) {
+        db_data->json_data = json_array ();
     } else {
         // database is backed-up only if this is not the first run
-        backup_db (data->db_path);
+        backup_db (db_data->db_path);
     }
 
-    g_slist_foreach (data->data_to_add, add_to_json, data->json_data);
+    g_slist_foreach (db_data->data_to_add, add_to_json, db_data->json_data);
 
-    gchar *plain_data = json_dumps (data->json_data, JSON_COMPACT);
+    gchar *plain_data = json_dumps (db_data->json_data, JSON_COMPACT);
 
-    if (encrypt_db (data->db_path, plain_data, data->key) != NULL) {
-        g_printerr ("Couldn't update the database.\n");
+    if (encrypt_db (db_data->db_path, plain_data, db_data->key, err) != NULL) {
         if (!first_run) {
-            g_print ("Restoring original database..\n");
-            restore_db (data->db_path);
+            g_printerr ("Encrypting the new data failed, restoring original copy...\n");
+            restore_db (db_data->db_path);
+        } else {
+            g_printerr ("Couldn't update the database (encrypt_db failed)\n");
+            if (g_file_test (db_data->db_path, G_FILE_TEST_EXISTS)) {
+                g_unlink (db_data->db_path);
+            }
         }
+    } else {
+        // database must be backed-up both before and after the update
+        backup_db (db_data->db_path);
     }
 
     gcry_free (plain_data);
@@ -155,11 +171,12 @@ add_to_json (gpointer list_elem,
 
 
 static gpointer
-encrypt_db (const gchar *db_path,
-            const gchar *in_memory_json,
-            const gchar *password)
+encrypt_db (const gchar  *db_path,
+            const gchar  *in_memory_json,
+            const gchar  *password,
+            GError      **err)
 {
-    GError *err = NULL;
+    GError *local_err = NULL;
     gcry_cipher_hd_t hd;
     HeaderData *header_data = g_new0 (HeaderData, 1);
 
@@ -167,23 +184,25 @@ encrypt_db (const gchar *db_path,
     gcry_create_nonce (header_data->salt, KDF_SALT_SIZE);
 
     GFile *out_file = g_file_new_for_path (db_path);
-    GFileOutputStream *out_stream = g_file_replace (out_file, NULL, FALSE, G_FILE_CREATE_REPLACE_DESTINATION, NULL, &err);
-    if (err != NULL) {
-        g_printerr ("%s\n", err->message);
-        cleanup (out_file, NULL, header_data, err);
+    GFileOutputStream *out_stream = g_file_replace (out_file, NULL, FALSE, G_FILE_CREATE_REPLACE_DESTINATION, NULL, &local_err);
+    if (local_err != NULL) {
+        g_printerr ("%s\n", local_err->message);
+        g_set_error (err, generic_error_gquark (), GENERIC_ERRCODE, "Failed to replace existing file");
+        cleanup (out_file, NULL, header_data, local_err);
         return GENERIC_ERROR;
     }
-    if (g_output_stream_write (G_OUTPUT_STREAM (out_stream), header_data, sizeof (HeaderData), NULL, &err) == -1) {
-        g_printerr ("%s\n", err->message);
-        cleanup (out_file, out_stream, header_data, err);
+    if (g_output_stream_write (G_OUTPUT_STREAM (out_stream), header_data, sizeof (HeaderData), NULL, &local_err) == -1) {
+        g_printerr ("%s\n", local_err->message);
+        g_set_error (err, generic_error_gquark (), GENERIC_ERRCODE, "Failed while writing header data to file");
+        cleanup (out_file, out_stream, header_data, local_err);
         return GENERIC_ERROR;
     }
 
     guchar *derived_key = get_derived_key (password, header_data);
     if (derived_key == SECURE_MEMORY_ALLOC_ERR || derived_key == KEY_DERIV_ERR) {
-        cleanup (out_file, out_stream, header_data, err);
-        g_free (header_data);
-        return (gpointer) derived_key;
+        cleanup (out_file, out_stream, header_data, local_err);
+        g_set_error (err, generic_error_gquark (), GENERIC_ERRCODE, "Failed to derive key.\nPlease check <a href=\"https://github.com/paolostivanin/OTPClient/wiki/Secure-Memory-Limitations\">Secure Memory wiki page</a>");
+        return (gpointer)derived_key;
     }
 
     gsize input_data_len = strlen (in_memory_json) + 1;
@@ -198,29 +217,27 @@ encrypt_db (const gchar *db_path,
     guchar tag[TAG_SIZE];
     gcry_cipher_gettag (hd, tag, TAG_SIZE); //append tag to outfile
 
-    if (g_output_stream_write (G_OUTPUT_STREAM (out_stream), enc_buffer, input_data_len, NULL, &err) == -1) {
-        cleanup (out_file, out_stream, header_data, err);
+    if (g_output_stream_write (G_OUTPUT_STREAM(out_stream), enc_buffer, input_data_len, NULL, &local_err) == -1) {
+        g_set_error (err, generic_error_gquark (), GENERIC_ERRCODE, "Failed while writing encrypted buffer to file");
+        cleanup (out_file, out_stream, header_data, local_err);
         gcry_cipher_close (hd);
         g_free (enc_buffer);
         gcry_free (derived_key);
-        g_free (header_data);
         return GENERIC_ERROR;
     }
-    if (g_output_stream_write (G_OUTPUT_STREAM (out_stream), tag, TAG_SIZE, NULL, &err) == -1) {
-        cleanup (out_file, out_stream, header_data, err);
+    if (g_output_stream_write (G_OUTPUT_STREAM(out_stream), tag, TAG_SIZE, NULL, &local_err) == -1) {
+        g_set_error (err, generic_error_gquark (), GENERIC_ERRCODE, "Failed while writing tag data to file");
+        cleanup (out_file, out_stream, header_data, local_err);
         gcry_cipher_close (hd);
         g_free (enc_buffer);
         gcry_free (derived_key);
-        g_free (header_data);
         return GENERIC_ERROR;
     }
-    g_object_unref (out_file);
-    g_object_unref (out_stream);
 
     gcry_cipher_close (hd);
     gcry_free (derived_key);
     g_free (enc_buffer);
-    g_free (header_data);
+    cleanup (out_file, out_stream, header_data, NULL);
 
     return NULL;
 }
@@ -283,7 +300,7 @@ decrypt_db (const gchar *db_path,
     if (derived_key == SECURE_MEMORY_ALLOC_ERR || derived_key == KEY_DERIV_ERR) {
         g_free (header_data);
         g_free (enc_buf);
-        return (gpointer) derived_key;
+        return (gpointer)derived_key;
     }
 
     gcry_cipher_open (&hd, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_GCM, 0);
@@ -298,6 +315,7 @@ decrypt_db (const gchar *db_path,
         gcry_free (derived_key);
         g_free (header_data);
         g_free (enc_buf);
+        gcry_free (dec_buf);
         return TAG_MISMATCH;
     }
 
@@ -361,6 +379,8 @@ restore_db (const gchar *path)
     if (!g_file_copy (src, dst, G_FILE_COPY_OVERWRITE | G_FILE_COPY_NOFOLLOW_SYMLINKS, NULL, NULL, NULL, &err)) {
         g_printerr ("Couldn't restore the backup file: %s\n", err->message);
         g_clear_error (&err);
+    } else {
+        g_print ("Backup copy successfully restored.\n");
     }
     g_object_unref (src);
     g_object_unref (dst);
@@ -383,6 +403,8 @@ cleanup (GFile      *in_file,
     g_object_unref (in_file);
     if (in_stream != NULL)
         g_object_unref (in_stream);
-    g_free (header_data);
-    g_clear_error (&err);
+    if (header_data != NULL)
+        g_free (header_data);
+    if (err != NULL)
+        g_clear_error (&err);
 }

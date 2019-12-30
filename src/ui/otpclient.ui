@@ -36,6 +36,45 @@ Author: Paolo Stivanin
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <child>
+          <object class="GtkModelButton" id="add_qr_file_btn_id">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="action_name">add_menu.import_qr_file</property>
+            <property name="text" translatable="yes">From file</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkModelButton" id="add_qr_clipboard_btn_id">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="action_name">add_menu.import_qr_clipboard</property>
+            <property name="text" translatable="yes">From clipboard</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="submenu">import_qr_menu</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
           <object class="GtkModelButton" id="webcam_model_btn_id">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
@@ -66,12 +105,12 @@ Author: Paolo Stivanin
           </packing>
         </child>
         <child>
-          <object class="GtkModelButton" id="photo_model_btn_id">
+          <object class="GtkModelButton" id="import_qr_model_btn_id">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
-            <property name="action_name">add_menu.select_photo</property>
-            <property name="text" translatable="yes">Select photo</property>
+            <property name="text" translatable="yes">Using a QR Code</property>
+            <property name="menu_name">import_qr_menu</property>
             <accelerator key="p" signal="activate" modifiers="GDK_CONTROL_MASK"/>
           </object>
           <packing>
@@ -98,7 +137,7 @@ Author: Paolo Stivanin
       </object>
       <packing>
         <property name="submenu">main</property>
-        <property name="position">1</property>
+        <property name="position">2</property>
       </packing>
     </child>
   </object>
@@ -179,6 +218,8 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
               <object class="GtkEntry" id="changepwd_diag_currententry_id">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Max 255 chars</property>
+                <property name="max_length">255</property>
                 <property name="visibility">False</property>
                 <property name="secondary_icon_name">dialog-password-symbolic</property>
                 <property name="secondary_icon_tooltip_text" translatable="yes">Show password</property>
@@ -195,6 +236,8 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
               <object class="GtkEntry" id="changepwd_diag_newentry1_id">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Max 255 chars</property>
+                <property name="max_length">255</property>
                 <property name="visibility">False</property>
                 <property name="secondary_icon_name">dialog-password-symbolic</property>
                 <property name="secondary_icon_tooltip_text" translatable="yes">Show password</property>
@@ -211,6 +254,8 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
               <object class="GtkEntry" id="changepwd_diag_newentry2_id">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Max 255 chars</property>
+                <property name="max_length">255</property>
                 <property name="visibility">False</property>
                 <property name="secondary_icon_name">dialog-password-symbolic</property>
                 <property name="secondary_icon_tooltip_text" translatable="yes">Show password</property>
@@ -243,7 +288,9 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
     <property name="can_focus">False</property>
     <property name="border_width">5</property>
     <property name="title" translatable="yes">Password</property>
+    <property name="window_position">center</property>
     <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
     <child>
       <placeholder/>
     </child>
@@ -308,6 +355,8 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
           <object class="GtkEntry" id="decpwddiag_entry_id">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="tooltip_text" translatable="yes">Max 255 chars</property>
+            <property name="max_length">255</property>
             <property name="visibility">False</property>
             <property name="secondary_icon_name">dialog-password-symbolic</property>
             <property name="secondary_icon_tooltip_text" translatable="yes">Show password</property>
@@ -325,6 +374,72 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
     <action-widgets>
       <action-widget response="-6">decpwddiag_cancel_btn_id</action-widget>
       <action-widget response="-5">decpwddiag_ok_btn_id</action-widget>
+    </action-widgets>
+  </object>
+  <object class="GtkDialog" id="diag_qr_clipboard_id">
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Scan using webcam</property>
+    <property name="window_position">center</property>
+    <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="margin_top">5</property>
+        <property name="margin_bottom">5</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">5</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="cancel_btn_qrclipb_id">
+                <property name="label" translatable="yes">Cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Select the file with the QR code and copy it (CTRL-C).
+
+If you are using &lt;b&gt;KDE&lt;/b&gt;, then you must copy the file &lt;b&gt;before&lt;/b&gt;
+selecting this option, otherwise the content won't be parsed.
+
+This dialog will close automatically as soon as a valid qrcode
+has been found or after 30 seconds if nothing has been detected.</property>
+            <property name="use_markup">True</property>
+            <property name="justify">center</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-6">cancel_btn_qrclipb_id</action-widget>
     </action-widgets>
   </object>
   <object class="GtkDialog" id="diag_webcam_id">
@@ -482,7 +597,7 @@ is &lt;b&gt;highly recommended&lt;/b&gt;</property>
                         <property name="can_focus">True</property>
                         <property name="margin_right">5</property>
                         <property name="margin_bottom">5</property>
-                        <property name="max_length">80</property>
+                        <property name="max_length">64</property>
                       </object>
                     </child>
                   </object>
@@ -518,7 +633,7 @@ is &lt;b&gt;highly recommended&lt;/b&gt;</property>
                         <property name="can_focus">True</property>
                         <property name="margin_right">5</property>
                         <property name="margin_bottom">5</property>
-                        <property name="max_length">80</property>
+                        <property name="max_length">64</property>
                       </object>
                     </child>
                   </object>
@@ -940,6 +1055,8 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
               <object class="GtkEntry" id="newdb_pwd_diag_entry1_id">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Max 255 chars</property>
+                <property name="max_length">255</property>
                 <property name="visibility">False</property>
                 <property name="secondary_icon_name">dialog-password-symbolic</property>
                 <property name="secondary_icon_tooltip_text" translatable="yes">Show password</property>
@@ -956,6 +1073,8 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
               <object class="GtkEntry" id="newdb_pwd_diag_entry2_id">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Max 255 chars</property>
+                <property name="max_length">255</property>
                 <property name="visibility">False</property>
                 <property name="secondary_icon_name">dialog-password-symbolic</property>
                 <property name="secondary_icon_tooltip_text" translatable="yes">Show password</property>
@@ -1110,6 +1229,58 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
                 <property name="top_attach">0</property>
               </packing>
             </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Auto lock on system lock</property>
+              </object>
+              <packing>
+                <property name="left_attach">0</property>
+                <property name="top_attach">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSwitch" id="autolock_switch_id">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+              </object>
+              <packing>
+                <property name="left_attach">1</property>
+                <property name="top_attach">3</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Auto lock when inactive for</property>
+              </object>
+              <packing>
+                <property name="left_attach">0</property>
+                <property name="top_attach">4</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkComboBoxText" id="autolock_inactive_cb_id">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="active">0</property>
+                <property name="active_id">0</property>
+                <items>
+                  <item id="0" translatable="yes">Never</item>
+                  <item id="30" translatable="yes">30s</item>
+                  <item id="60" translatable="yes">1m</item>
+                  <item id="300" translatable="yes">5m</item>
+                  <item id="900" translatable="yes">15m</item>
+                  <item id="1800" translatable="yes">30m</item>
+                </items>
+              </object>
+              <packing>
+                <property name="left_attach">1</property>
+                <property name="top_attach">4</property>
+              </packing>
+            </child>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -1137,12 +1308,26 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
             <property name="action_name">settings_menu.import_andotp</property>
-            <property name="text" translatable="yes">andOTP</property>
+            <property name="text" translatable="yes">andOTP (encrypted)</property>
           </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkModelButton" id="import_andotp_plain_model_btn_id">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="action_name">settings_menu.import_andotp_plain</property>
+            <property name="text" translatable="yes">andOTP (plain)</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
           </packing>
         </child>
         <child>
@@ -1156,7 +1341,7 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">1</property>
+            <property name="position">2</property>
           </packing>
         </child>
       </object>
@@ -1176,12 +1361,26 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
             <property name="action_name">settings_menu.export_andotp</property>
-            <property name="text" translatable="yes">andOTP</property>
+            <property name="text" translatable="yes">andOTP (encrypted)</property>
           </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkModelButton" id="export_andotp_plain_model_btn_id">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+            <property name="action_name">settings_menu.export_andotp_plain</property>
+            <property name="text" translatable="yes">andOTP (plain)</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>
@@ -1396,5 +1595,208 @@ Please note that &lt;b&gt;there is no way to recover a forgotten password.&lt;/b
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkDialog" id="unlock_pwd_diag_id">
+    <property name="can_focus">False</property>
+    <property name="border_width">5</property>
+    <property name="title" translatable="yes">Password</property>
+    <property name="window_position">center</property>
+    <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">10</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="unlock_diag_quit_btn_id">
+                <property name="label" translatable="yes">Quit</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="unlock_diag_unlock_btn_id">
+                <property name="label" translatable="yes">Unlock</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">10</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">The application is &lt;b&gt;locked&lt;/b&gt;.
+Please type your password to unlock it</property>
+                <property name="use_markup">True</property>
+                <property name="justify">center</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="unlock_entry_id">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="tooltip_text" translatable="yes">Max 255 chars</property>
+                <property name="max_length">255</property>
+                <property name="visibility">False</property>
+                <property name="secondary_icon_name">dialog-password-symbolic</property>
+                <property name="secondary_icon_tooltip_text" translatable="yes">Show password</property>
+                <property name="placeholder_text" translatable="yes">Type password...</property>
+                <property name="input_purpose">password</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-7">unlock_diag_quit_btn_id</action-widget>
+      <action-widget response="-5">unlock_diag_unlock_btn_id</action-widget>
+    </action-widgets>
+  </object>
+  <object class="GtkDialog" id="warning_diag_id">
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Warning: memlock value too low</property>
+    <property name="window_position">center</property>
+    <property name="type_hint">dialog</property>
+    <property name="gravity">center</property>
+    <child>
+      <placeholder/>
+    </child>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="warning_diag_exit_btn_id">
+                <property name="label" translatable="yes">Exit</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="warning_diag_ok_btn_id">
+                <property name="label" translatable="yes">OK</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">9</property>
+            <child>
+              <object class="GtkLabel" id="warning_diag_label_id">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="use_markup">True</property>
+                <property name="justify">center</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkCheckButton" id="warning_diag_check_btn_id">
+                <property name="label" translatable="yes">Do not show this warning again</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">False</property>
+                <property name="draw_indicator">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-7">warning_diag_exit_btn_id</action-widget>
+      <action-widget response="-5">warning_diag_ok_btn_id</action-widget>
+    </action-widgets>
   </object>
 </interface>

@@ -9,13 +9,6 @@ missing_file_gquark (void)
 
 
 GQuark
-invalid_input_gquark (void)
-{
-    return g_quark_from_static_string ("invalid_input");
-}
-
-
-GQuark
 bad_tag_gquark (void)
 {
     return g_quark_from_static_string ("bad_tag");
@@ -40,4 +33,11 @@ GQuark
 generic_error_gquark (void)
 {
     return g_quark_from_static_string ("generic_error");
+}
+
+
+GQuark
+memlock_error_gquark (void)
+{
+    return g_quark_from_static_string ("memlock_error");
 }
