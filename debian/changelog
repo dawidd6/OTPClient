@@ -1,3 +1,92 @@
+otpclient (2.0.1-1) xenial; urgency=medium
+
+  [ Paolo Stivanin ]
+  * Add missing ctrl-q shortcut
+
+  [ glitsj16 ]
+  * Fix typo in app.c
+
+  [ Andrew Conrad ]
+  * Switch from gtk file chooser dialogs to native
+
+  [ Paolo Stivanin ]
+  * Use GtkFileChooserNative only when available
+  * Update README.md
+  * Use fedora 30 instead of 28
+  * Show error dialog if db is missing
+
+  [ Leo ]
+  * Respect XDG specification when searching for configuration
+
+  [ Paolo Stivanin ]
+  * Rename 'label' to 'account name'
+  * Rename label to account_name
+  * Fix andOTP import and export
+  * Fix to andOTP export
+  * Remove leading and trailing spaces from issuer and account
+  * Create new db instead of failing when path is specified but db is missing
+  * Correctly handle empty label and/or issuer when editing a row
+  * Release 1.5.0
+  * update appdata file with release 1.5.0
+  * Add missing ctrl-q shortcut to gtkshortcutwindow
+  * Add newline before db path on decrypt dialog (#133)
+  * Release v1.5.1
+  * remove debug output from circle config
+  * Add lock feature
+  * CLI: add help
+  * Refactor code, part1
+  * increase memlock memory to 4MB (if possible)
+  * Add get_token to cli
+  * Add list all to cli
+  * Update cmakelists.txt to include both gui and cli
+  * Fixes to CLI
+  * Use new encryption algo introduced with v0.6.3
+  * Update gitignore
+  * Add UI bits for plain andotp support
+  * update gitignore
+  * Fix andotp export (new enc algo)
+  * Add andotp plain backup import feature
+  * Add andotp plaintext export feature
+  * Remove unused code
+  * code cleanup
+  * Allow to sort entries by account and/or issuer
+  * Add option to import QR from clipboard
+  * minor coverity scan fixes
+  * fix submenu reference in ui file
+  * improve qr import from clipboard
+  * Fix some CLI issues
+  * Fix importing andotp plain backup
+  * Fix andotp export when issuer is missing
+  * fix andotp encrypted export
+  * Fix column sorting
+  * Add image from clipboard now supports KDE
+  * Update circleci config
+  * small docu updates
+  * Update flatpak manifest and appdata
+  * enable cli by default
+  * update appdata
+  * fix cli help output
+  * update screenshots
+  * update appdata
+  * Update circleci config
+  * Disable openSUSE Leap
+  * Update wiki link
+  * Show error dialog if secure memory allocation failed
+  * Avoid double freeing stuff in case of failure
+  * Multiple fixes to db handling (#156)
+  * Set max pwd length to 255
+  * fix memory leak on parse-uri
+  * Small fixes to message dialog code
+  * be more verbose on failure
+  * Improve error handling in case of failure
+  * Show warning when memlock value is too low
+  * update cmake and appdata
+
+  [ Dawid Dziurla ]
+  * d/gbp.conf: change debian-branch to master
+
+ -- Dawid Dziurla <dawidd0811@gmail.com>  Mon, 30 Dec 2019 11:28:56 +0100
+
 otpclient (1.5.0-1) xenial; urgency=medium
 
   * New upstream version 1.5.0
