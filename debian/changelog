@@ -1,4 +1,4 @@
-otpclient (2.0.1-1ubuntu1) xenial; urgency=medium
+otpclient (2.1.0-1) xenial; urgency=medium
 
   [ Sandro ]
   * Update README.md
