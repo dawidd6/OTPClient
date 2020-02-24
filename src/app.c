@@ -16,7 +16,7 @@
 
 
 #ifndef USE_FLATPAK_APP_FOLDER
-static gchar     *get_db_path               (GtkWidget          *window);
+static gchar     *get_db_path               (AppData            *app_data);
 #endif
 
 static GKeyFile  *get_kf_ptr                (void);
@@ -50,8 +50,15 @@ static void       change_password_cb        (GSimpleAction      *simple,
                                              GVariant           *parameter,
                                              gpointer            user_data);
 
+static void       save_sort_order           (GtkTreeView        *tree_view);
+
 static void       save_window_size          (gint                width,
                                              gint                height);
+
+static void       store_data                (const gchar        *param1_name,
+                                             gint                param1_value,
+                                             const gchar        *param2_name,
+                                             gint                param2_value);
 
 static gboolean   key_pressed_cb            (GtkWidget          *window,
                                              GdkEventKey        *event_key,
@@ -59,6 +66,9 @@ static gboolean   key_pressed_cb            (GtkWidget          *window,
 
 static gboolean   show_memlock_warn_dialog  (gint32              max_file_size,
                                              GtkBuilder         *builder);
+
+static void       set_open_db_action        (GtkWidget          *btn,
+                                             gpointer            user_data);
 
 
 void
@@ -111,9 +121,31 @@ activate (GtkApplication    *app,
     }
     g_free (cfg_file_path);
 #else
-    app_data->db_data->db_path = get_db_path (app_data->main_window);
+    if (!g_file_test (g_build_filename (g_get_user_config_dir (), "otpclient.cfg", NULL), G_FILE_TEST_EXISTS)) {
+        app_data->diag_rcdb = GTK_WIDGET(gtk_builder_get_object (app_data->builder, "dialog_rcdb_id"));
+        GtkWidget *restore_btn = GTK_WIDGET(gtk_builder_get_object (app_data->builder, "diag_rc_restoredb_btn_id"));
+        GtkWidget *create_btn = GTK_WIDGET(gtk_builder_get_object (app_data->builder, "diag_rc_createdb_btn_id"));
+        g_signal_connect (restore_btn, "clicked", G_CALLBACK (set_open_db_action), app_data);
+        g_signal_connect (create_btn, "clicked", G_CALLBACK (set_open_db_action), app_data);
+
+        gint response = gtk_dialog_run (GTK_DIALOG(app_data->diag_rcdb));
+        switch (response) {
+            case GTK_RESPONSE_CANCEL:
+            default:
+                gtk_widget_destroy (app_data->diag_rcdb);
+                g_free (app_data->db_data);
+                g_free (app_data);
+                g_application_quit (G_APPLICATION(app));
+                return;
+            case GTK_RESPONSE_OK:
+                gtk_widget_destroy (app_data->diag_rcdb);
+        }
+    }
+
+    app_data->db_data->db_path = get_db_path (app_data);
     if (app_data->db_data->db_path == NULL) {
         g_free (app_data->db_data);
+        g_free (app_data);
         g_application_quit (G_APPLICATION(app));
         return;
     }
@@ -122,6 +154,7 @@ activate (GtkApplication    *app,
     if (max_file_size < (96 * 1024) && get_warn_data () == TRUE) {
         if (show_memlock_warn_dialog (max_file_size, app_data->builder) == TRUE) {
             g_free (app_data->db_data);
+            g_free (app_data);
             g_application_quit (G_APPLICATION(app));
             return;
         }
@@ -137,6 +170,7 @@ activate (GtkApplication    *app,
     app_data->db_data->key = prompt_for_password (app_data, NULL, NULL, FALSE);
     if (app_data->db_data->key == NULL) {
         g_free (app_data->db_data);
+        g_free (app_data);
         g_application_quit (G_APPLICATION(app));
         return;
     }
@@ -148,6 +182,7 @@ activate (GtkApplication    *app,
         gcry_free (app_data->db_data->key);
         if (g_error_matches (err, memlock_error_gquark (), MEMLOCK_ERRCODE)) {
             g_free (app_data->db_data);
+            g_free (app_data);
             g_clear_error (&err);
             g_application_quit (G_APPLICATION(app));
             return;
@@ -364,7 +399,8 @@ set_action_group (GtkBuilder *builder,
             { .name = "change_pwd", .activate = change_password_cb },
             { .name = "edit_row", .activate = edit_selected_row_cb },
             { .name = "settings", .activate = settings_dialog_cb },
-            { .name = "shortcuts", .activate = shortcuts_window_cb }
+            { .name = "shortcuts", .activate = shortcuts_window_cb },
+            { .name = "reset_sort", .activate = reset_column_sorting_cb }
     };
 
     static GActionEntry add_menu_entries[] = {
@@ -396,7 +432,7 @@ set_action_group (GtkBuilder *builder,
 
 #ifndef USE_FLATPAK_APP_FOLDER
 static gchar *
-get_db_path (GtkWidget *window)
+get_db_path (AppData *app_data)
 {
     gchar *db_path = NULL;
     GError *err = NULL;
@@ -404,7 +440,7 @@ get_db_path (GtkWidget *window)
     gchar *cfg_file_path = g_build_filename (g_get_user_config_dir (), "otpclient.cfg", NULL);
     if (g_file_test (cfg_file_path, G_FILE_TEST_EXISTS)) {
         if (!g_key_file_load_from_file (kf, cfg_file_path, G_KEY_FILE_NONE, &err)) {
-            show_message_dialog (window, err->message, GTK_MESSAGE_ERROR);
+            show_message_dialog (app_data->main_window, err->message, GTK_MESSAGE_ERROR);
             g_key_file_free (kf);
             return NULL;
         }
@@ -414,7 +450,7 @@ get_db_path (GtkWidget *window)
         }
         if (!g_file_test (db_path, G_FILE_TEST_EXISTS)) {
             gchar *msg = g_strconcat ("Database file/location:\n<b>", db_path, "</b>\ndoes not exist. A new database will be created.", NULL);
-            show_message_dialog (window, msg, GTK_MESSAGE_ERROR);
+            show_message_dialog (app_data->main_window, msg, GTK_MESSAGE_ERROR);
             g_free (msg);
             goto new_db;
         }
@@ -423,14 +459,14 @@ get_db_path (GtkWidget *window)
     new_db: ; // empty statement workaround
 #if GTK_CHECK_VERSION(3, 20, 0)
     GtkFileChooserNative *dialog = gtk_file_chooser_native_new ("Select database location",
-                                                                GTK_WINDOW (window),
-                                                                GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                                GTK_WINDOW (app_data->main_window),
+                                                                app_data->open_db_file_action,
                                                                 "OK",
                                                                 "Cancel");
 #else
     GtkWidget *dialog = gtk_file_chooser_dialog_new ("Select database location",
-                                                        GTK_WINDOW (window),
-                                                        GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                        GTK_WINDOW (app_data->main_window),
+                                                        app_data->open_db_file_action,
                                                         "Cancel", GTK_RESPONSE_CANCEL,
                                                         "OK", GTK_RESPONSE_ACCEPT,
                                                         NULL);
@@ -438,7 +474,9 @@ get_db_path (GtkWidget *window)
     GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
     gtk_file_chooser_set_do_overwrite_confirmation (chooser, TRUE);
     gtk_file_chooser_set_select_multiple (chooser, FALSE);
-    gtk_file_chooser_set_current_name (chooser, "NewDatabase.enc");
+    if (app_data->open_db_file_action == GTK_FILE_CHOOSER_ACTION_SAVE) {
+        gtk_file_chooser_set_current_name (chooser, "NewDatabase.enc");
+    }
 #if GTK_CHECK_VERSION(3, 20, 0)
     gint res = gtk_native_dialog_run (GTK_NATIVE_DIALOG(dialog));
 #else
@@ -551,6 +589,7 @@ destroy_cb (GtkWidget   *window,
             gpointer     user_data)
 {
     AppData *app_data = (AppData *)user_data;
+    save_sort_order (app_data->tree_view);
     g_source_remove (app_data->source_id);
     g_source_remove (app_data->source_id_last_activity);
     g_date_time_unref (app_data->last_user_activity);
@@ -578,8 +617,31 @@ destroy_cb (GtkWidget   *window,
 
 
 static void
+save_sort_order (GtkTreeView *tree_view)
+{
+    gint id;
+    GtkSortType order;
+    gtk_tree_sortable_get_sort_column_id (GTK_TREE_SORTABLE(GTK_LIST_STORE(gtk_tree_view_get_model (tree_view))), &id, &order);
+    // store data only if it was changed
+    if (id >= 0) {
+        store_data ("column_id", id, "sort_order", order);
+    }
+}
+
+
+static void
 save_window_size (gint width,
                   gint height)
+{
+    store_data ("window_width", width, "window_height", height);
+}
+
+
+static void
+store_data (const gchar *param1_name,
+            gint         param1_value,
+            const gchar *param2_name,
+            gint         param2_value)
 {
     GError *err = NULL;
     GKeyFile *kf = g_key_file_new ();
@@ -593,8 +655,8 @@ save_window_size (gint width,
         if (!g_key_file_load_from_file (kf, cfg_file_path, G_KEY_FILE_NONE, &err)) {
             g_printerr ("%s\n", err->message);
         } else {
-            g_key_file_set_integer (kf, "config", "window_width", width);
-            g_key_file_set_integer (kf, "config", "window_height", height);
+            g_key_file_set_integer (kf, "config", param1_name, param1_value);
+            g_key_file_set_integer (kf, "config", param2_name, param2_value);
             if (!g_key_file_save_to_file (kf, cfg_file_path, &err)) {
                 g_printerr ("%s\n", err->message);
             }
@@ -602,4 +664,14 @@ save_window_size (gint width,
     }
     g_key_file_free (kf);
     g_free (cfg_file_path);
+}
+
+
+static void
+set_open_db_action (GtkWidget *btn,
+                    gpointer   user_data)
+{
+    AppData *app_data = (AppData *)user_data;
+    app_data->open_db_file_action = g_strcmp0 (gtk_widget_get_name (btn), "diag_rc_restoredb_btn") == 0 ? GTK_FILE_CHOOSER_ACTION_OPEN : GTK_FILE_CHOOSER_ACTION_SAVE;
+    gtk_dialog_response (GTK_DIALOG(app_data->diag_rcdb), GTK_RESPONSE_OK);
 }
