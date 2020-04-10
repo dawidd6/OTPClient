@@ -87,6 +87,8 @@ activate (GtkApplication    *app,
     app_data->search_column = 0; // account
     app_data->auto_lock = FALSE; // disabled by default
     app_data->inactivity_timeout = 0; // never
+    // open_db_file_action is set only on first startup and not when the db is deleted but the cfg file is there, therefore we need a default action
+    app_data->open_db_file_action = GTK_FILE_CHOOSER_ACTION_SAVE;
     get_wh_data (&width, &height, app_data);
 
     app_data->db_data = g_new0 (DatabaseData, 1);
@@ -394,8 +396,10 @@ set_action_group (GtkBuilder *builder,
             { .name = ANDOTP_IMPORT_ACTION_NAME, .activate = select_file_cb },
             { .name = ANDOTP_IMPORT_PLAIN_ACTION_NAME, .activate = select_file_cb },
             { .name = AUTHPLUS_IMPORT_ACTION_NAME, .activate = select_file_cb },
+            { .name = FREEOTPPLUS_IMPORT_ACTION_NAME, .activate = select_file_cb },
             { .name = ANDOTP_EXPORT_ACTION_NAME, .activate = export_data_cb },
             { .name = ANDOTP_EXPORT_PLAIN_ACTION_NAME, .activate = export_data_cb },
+            { .name = FREEOTPPLUS_EXPORT_ACTION_NAME, .activate = export_data_cb },
             { .name = "change_pwd", .activate = change_password_cb },
             { .name = "edit_row", .activate = edit_selected_row_cb },
             { .name = "settings", .activate = settings_dialog_cb },

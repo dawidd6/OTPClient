@@ -107,7 +107,7 @@ parse_data_and_update_db (AppData       *app_data,
     GSList *content = NULL;
 
     gchar *pwd = NULL;
-    if (g_strcmp0 (action_name, ANDOTP_IMPORT_PLAIN_ACTION_NAME) != 0) {
+    if (g_strcmp0 (action_name, ANDOTP_IMPORT_ACTION_NAME) == 0) {
         pwd = prompt_for_password (app_data, NULL, action_name, FALSE);
         if (pwd == NULL) {
             return FALSE;
@@ -116,8 +116,10 @@ parse_data_and_update_db (AppData       *app_data,
 
     if (g_strcmp0 (action_name, ANDOTP_IMPORT_ACTION_NAME) == 0 || g_strcmp0 (action_name, ANDOTP_IMPORT_PLAIN_ACTION_NAME) == 0) {
         content = get_andotp_data (filename, pwd, app_data->db_data->max_file_size_from_memlock, g_strcmp0 (action_name, ANDOTP_IMPORT_ACTION_NAME) == 0 ? TRUE : FALSE , &err);
-    } else {
+    } else if (g_strcmp0 (action_name, AUTHPLUS_IMPORT_ACTION_NAME) == 0) {
         content = get_authplus_data (filename, pwd, app_data->db_data->max_file_size_from_memlock, &err);
+    } else if (g_strcmp0 (action_name, FREEOTPPLUS_IMPORT_ACTION_NAME) == 0) {
+        content = get_freeotpplus_data (filename, &err);
     }
 
     if (content == NULL && err != NULL) {
