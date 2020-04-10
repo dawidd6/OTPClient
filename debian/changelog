@@ -1,3 +1,18 @@
+otpclient (2.2.0-1) xenial; urgency=medium
+
+  [ Paolo Stivanin ]
+  * Improve dialog wording
+  * Update SECURITY.md
+  * Update SECURITY.md
+  * Add support for FreeOTP+
+  * release 2.2.0
+  * Ask password only if importing encrypted andotp
+  * Fix open db dialog
+  * Update security.md
+  * Update config.yml
+
+ -- Dawid Dziurla <dawidd0811@gmail.com>  Fri, 10 Apr 2020 10:56:04 +0200
+
 otpclient (2.1.0-1) xenial; urgency=medium
 
   [ Sandro ]
