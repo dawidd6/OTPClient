@@ -1,3 +1,15 @@
+otpclient (2.3.0-1) xenial; urgency=medium
+
+  [ Paolo Stivanin ]
+  * Fix #162
+  * Update to v2.2.1
+  * Update README.md
+  * Update SECURITY.md
+  * Add support for Aegis backups (#174)
+  * Update README.md
+
+ -- Dawid Dziurla <dawidd0811@gmail.com>  Tue, 12 May 2020 09:34:06 +0200
+
 otpclient (2.2.0-1) xenial; urgency=medium
 
   [ Paolo Stivanin ]
