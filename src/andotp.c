@@ -200,7 +200,7 @@ export_andotp (const gchar *export_path,
         json_object_set (export_obj, "secret", json_object_get (db_obj, "secret"));
         json_object_set (export_obj, "digits", json_object_get (db_obj, "digits"));
         json_object_set (export_obj, "algorithm", json_object_get (db_obj, "algo"));
-        if (g_strcmp0 (json_string_value (json_object_get (db_obj, "type")), "TOTP") == 0) {
+        if (g_ascii_strcasecmp (json_string_value (json_object_get (db_obj, "type")), "TOTP") == 0) {
             json_object_set (export_obj, "period", json_object_get (db_obj, "period"));
         } else {
             json_object_set (export_obj, "counter", json_object_get (db_obj, "counter"));
@@ -300,7 +300,7 @@ get_derived_key (const gchar  *password,
                  gint          iterations)
 {
     guchar *derived_key = gcry_malloc_secure (32);
-    if (gcry_kdf_derive (password, (gsize) g_utf8_strlen (password, -1) + 1, GCRY_KDF_PBKDF2, GCRY_MD_SHA1,
+    if (gcry_kdf_derive (password, (gsize) g_utf8_strlen (password, -1), GCRY_KDF_PBKDF2, GCRY_MD_SHA1,
                          salt, ANDOTP_SALT_SIZE, iterations, 32, derived_key) != 0) {
         return NULL;
     }
